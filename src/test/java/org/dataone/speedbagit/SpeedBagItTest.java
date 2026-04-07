@@ -470,5 +470,31 @@ public class SpeedBagItTest {
             bag.addFile(dataFile2Stream, "tag/data_file1.csv", true);
         });
     }
+
+    /**
+     * Tests that when streaming fails in the background thread, the caller
+     * receives an IOException rather than silently getting a truncated stream.
+     */
+    @Test
+    public void testStreamPropagatesError() throws IOException, NoSuchAlgorithmException, SpeedBagException {
+        SpeedBagIt bag = new SpeedBagIt(1.0, "MD5");
+
+        // Add a stream that throws on read, which will cause the background thread to fail
+        InputStream failingStream = new InputStream() {
+            @Override
+            public int read() throws IOException {
+                throw new IOException("simulated read failure");
+            }
+        };
+        bag.addFile(failingStream, "data/bad_file.csv", false);
+
+        InputStream bagStream = bag.stream();
+        assertThrows(IOException.class, () -> {
+            byte[] buf = new byte[1024];
+            while (bagStream.read(buf) != -1) {
+                // drain until error
+            }
+        });
+    }
 }
 
